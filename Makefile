@@ -292,6 +292,10 @@ test-e2e-clo-metric:
 test-svt:
 	hack/svt/test-svt.sh
 
+.PHONY: test-log-2703
+test-log-2703:
+	hack/verify-log-2703.sh -v -p
+
 .PHONY: undeploy
 undeploy:
 	hack/undeploy.sh
