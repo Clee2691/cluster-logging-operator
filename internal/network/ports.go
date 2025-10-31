@@ -7,7 +7,9 @@ import (
 
 	obs "github.com/openshift/cluster-logging-operator/api/observability/v1"
 	"github.com/openshift/cluster-logging-operator/internal/factory"
+	"github.com/openshift/cluster-logging-operator/internal/utils"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/set"
 )
 
@@ -199,4 +201,39 @@ func getDefaultPort(outputType obs.OutputType, urlStr string) int32 {
 		return 443 // https
 	}
 	panic(fmt.Sprintf("unknown output type: %s", outputType))
+}
+
+// GetProxyPorts extracts unique ports from cluster-wide proxy environment variables.
+// If proxy environment variables are set, it includes default ports 80 and 443 for noProxy traffic,
+// parses HTTP_PROXY and HTTPS_PROXY URLs to determine additional explicit proxy ports.
+func GetProxyPorts() []factory.PortProtocol {
+	proxyEnvNames := sets.NewString("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY")
+
+	portProtocolMap := map[factory.PortProtocol]bool{}
+
+	// Get proxy environment variables and parse them for additional explicit ports
+	proxyEnvVars := utils.GetProxyEnvVars()
+
+	// Always add default ports 80 and 443 for noProxy traffic if any proxy environment variables are set
+	if len(proxyEnvVars) > 0 {
+		portProtocolMap[factory.PortProtocol{Port: 80, Protocol: corev1.ProtocolTCP}] = true
+		portProtocolMap[factory.PortProtocol{Port: 443, Protocol: corev1.ProtocolTCP}] = true
+	}
+
+	for _, envVar := range proxyEnvVars {
+		// Process proxy environment variables
+		if proxyEnvNames.Has(envVar.Name) {
+			if port := parsePortProtocolFromURL(envVar.Value); port != nil {
+				// Add explicitly configured port from proxy URL
+				portProtocolMap[*port] = true
+			}
+		}
+	}
+
+	result := make([]factory.PortProtocol, 0, len(portProtocolMap))
+	for pp := range portProtocolMap {
+		result = append(result, pp)
+	}
+
+	return result
 }

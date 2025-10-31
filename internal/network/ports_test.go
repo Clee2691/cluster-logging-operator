@@ -1,6 +1,8 @@
 package network
 
 import (
+	"os"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -555,6 +557,180 @@ var _ = Describe("Network Ports", func() {
 				ports := GetInputPorts(inputs)
 				Expect(ports).To(ConsistOf(int32(8080), int32(5140)))
 			})
+		})
+	})
+
+	Describe("GetProxyPorts", func() {
+		var originalEnvVars map[string]string
+
+		BeforeEach(func() {
+			// Save original environment variables
+			originalEnvVars = make(map[string]string)
+			for _, envVar := range []string{"HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "NO_PROXY", "no_proxy"} {
+				originalEnvVars[envVar] = os.Getenv(envVar)
+				os.Unsetenv(envVar) // Clear all proxy env vars for clean test state
+			}
+		})
+
+		AfterEach(func() {
+			// Restore original environment variables
+			for envVar, value := range originalEnvVars {
+				if value != "" {
+					os.Setenv(envVar, value)
+				} else {
+					os.Unsetenv(envVar)
+				}
+			}
+		})
+
+		DescribeTable("when proxy environment variables are set",
+			func(envVars map[string]string, expectedPorts []factory.PortProtocol) {
+				for key, value := range envVars {
+					os.Setenv(key, value)
+				}
+
+				ports := GetProxyPorts()
+				if len(expectedPorts) == 0 {
+					Expect(ports).To(BeEmpty())
+				} else {
+					Expect(ports).To(ConsistOf(expectedPorts))
+				}
+			},
+			Entry("should extract ports from HTTP proxy URLs with explicit ports",
+				map[string]string{
+					"http_proxy":  "http://proxy.example.com:8080",
+					"https_proxy": "https://proxy.example.com:8443",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+					{Port: 8080, Protocol: corev1.ProtocolTCP},
+					{Port: 8443, Protocol: corev1.ProtocolTCP},
+				},
+			),
+			Entry("should use default ports when proxy URLs don't specify ports",
+				map[string]string{
+					"http_proxy":  "http://proxy.example.com",
+					"https_proxy": "https://proxy.example.com",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+				},
+			),
+			Entry("should handle proxy URLs with unknown schemes",
+				map[string]string{
+					"http_proxy": "proxy://proxy.example.com",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+				},
+			),
+			Entry("should deduplicate identical proxy ports",
+				map[string]string{
+					"http_proxy":  "http://proxy.example.com:8080",
+					"https_proxy": "https://proxy.example.com:8080",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+					{Port: 8080, Protocol: corev1.ProtocolTCP},
+				},
+			),
+			Entry("should handle malformed proxy URLs gracefully",
+				map[string]string{
+					"http_proxy":  "not-a-valid-url",
+					"https_proxy": "http://proxy.example.com:8080",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+					{Port: 8080, Protocol: corev1.ProtocolTCP},
+				},
+			),
+			Entry("should handle uppercase proxy environment variables",
+				map[string]string{
+					"HTTP_PROXY":  "http://proxy.example.com:3128",
+					"HTTPS_PROXY": "https://proxy.example.com:3129",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+					{Port: 3128, Protocol: corev1.ProtocolTCP},
+					{Port: 3129, Protocol: corev1.ProtocolTCP},
+				},
+			),
+			Entry("should not duplicate default ports when explicitly specified in proxy URLs",
+				map[string]string{
+					"http_proxy":  "http://proxy.example.com:80",
+					"https_proxy": "https://proxy.example.com:443",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+				},
+			),
+			Entry("should return default ports when both proxy and no-proxy environment variables are set",
+				map[string]string{
+					"http_proxy":  "http://proxy.example.com:8080",
+					"https_proxy": "https://proxy.example.com:8080",
+					"no_proxy":    "localhost,127.0.0.1",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+					{Port: 8080, Protocol: corev1.ProtocolTCP},
+				},
+			),
+			Entry("should handle proxy URLs with authentication",
+				map[string]string{
+					"http_proxy": "http://user:password@proxy.example.com:8080",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+					{Port: 8080, Protocol: corev1.ProtocolTCP},
+				},
+			),
+			Entry("should handle IPv6 proxy URLs",
+				map[string]string{
+					"http_proxy": "http://[::1]:8080",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+					{Port: 8080, Protocol: corev1.ProtocolTCP},
+				},
+			),
+			Entry("should handle empty string proxy URLs gracefully",
+				map[string]string{
+					"http_proxy":  "",
+					"https_proxy": "https://proxy.example.com:8443",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+					{Port: 8443, Protocol: corev1.ProtocolTCP},
+				},
+			),
+			Entry("should handle mix of uppercase and lowercase proxy environment variables",
+				map[string]string{
+					"HTTP_PROXY":  "http://proxy.example.com:8080",
+					"https_proxy": "https://proxy.example.com:8443",
+				},
+				[]factory.PortProtocol{
+					{Port: 80, Protocol: corev1.ProtocolTCP},
+					{Port: 443, Protocol: corev1.ProtocolTCP},
+					{Port: 8080, Protocol: corev1.ProtocolTCP},
+					{Port: 8443, Protocol: corev1.ProtocolTCP},
+				},
+			),
+		)
+
+		It("should return empty slice when no proxy environment variables are set", func() {
+			ports := GetProxyPorts()
+			Expect(ports).To(BeEmpty())
 		})
 	})
 })

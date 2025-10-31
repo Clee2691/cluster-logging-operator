@@ -31,6 +31,8 @@ func ReconcileClusterLogForwarderNetworkPolicy(k8Client client.Client, namespace
 		if len(inputs) > 0 {
 			ingressPorts = GetInputPorts(inputs)
 		}
+		// Add proxy ports if any for cluster-wide proxy configuration
+		egressPorts = append(egressPorts, GetProxyPorts()...)
 	}
 
 	desired := factory.NewNetworkPolicyWithProtocolPorts(namespace, policyName, instanceName, component, string(policyRuleSet), egressPorts, ingressPorts, visitor)
