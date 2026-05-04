@@ -18,6 +18,7 @@ import (
 
 const (
 	azureCredentialKindWorkloadIdentity = "workload_identity"
+	azureCredentialKindClientSecret     = "client_secret_credential"
 )
 
 func auth(s *sinks.AzureLogsIngestion, azli *obs.AzureLogsIngestion) {
@@ -48,6 +49,7 @@ func auth(s *sinks.AzureLogsIngestion, azli *obs.AzureLogsIngestion) {
 			}
 		}
 	default:
+		auth.AzureCredentialKind = azureCredentialKindClientSecret
 		if azliAuth.ClientSecret != nil {
 			auth.AzureTenantId = azliAuth.ClientSecret.TenantId
 			auth.AzureClientId = azliAuth.ClientSecret.ClientId
