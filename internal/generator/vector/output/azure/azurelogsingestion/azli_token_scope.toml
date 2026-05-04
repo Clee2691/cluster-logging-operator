@@ -7,6 +7,7 @@ stream_name = "Custom-MyTable_Logs_0_CL"
 token_scope = "https://monitor.azure.cn/.default"
 
 [sinks.output_azure_log_ingestion.auth]
+azure_credential_kind = "client_secret_credential"
 azure_tenant_id = "a0b1c2d3-e4f5-a6b7-c8d9-e0f1a2b3c4d5"
 azure_client_id = "b1c2d3e4-f5a6-b7c8-d9e0-f1a2b3c4d5e6"
 azure_client_secret = "SECRET[kubernetes_secret.azure-log-ingestion-secret/client_secret]"
