@@ -6,7 +6,8 @@ metadata:
   name: cluster-logging-operator-metrics-monitor
 spec:
   endpoints:
-  - port: https-metrics
+  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    port: https-metrics
     scheme: https
     tlsConfig:
       caFile: /etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt
