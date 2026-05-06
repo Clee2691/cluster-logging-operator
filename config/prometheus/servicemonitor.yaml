@@ -8,6 +8,7 @@ spec:
   endpoints:
     - port: https-metrics
       scheme: https
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
       tlsConfig:
         # Service serving certificates are signed by the service-ca which is not a CA in the
         # kube-root-ca.crt bundle. Use the service-ca.crt from the ConfigMap created by the
