@@ -101,6 +101,11 @@ func SecretReferencesAsValueReferences(o obsv1.OutputSpec) (configs []*obsv1.Val
 // to be nil if it was not specified for the output
 func SecretReferences(o obsv1.OutputSpec) []*obsv1.SecretReference {
 	switch o.Type {
+	case obsv1.OutputTypeAzureLogsIngestion:
+		if o.AzureLogsIngestion != nil && o.AzureLogsIngestion.Authentication != nil &&
+			o.AzureLogsIngestion.Authentication.ClientSecret != nil {
+			return []*obsv1.SecretReference{o.AzureLogsIngestion.Authentication.ClientSecret.Secret}
+		}
 	case obsv1.OutputTypeAzureMonitor:
 		if o.AzureMonitor != nil && o.AzureMonitor.Authentication != nil {
 			return []*obsv1.SecretReference{o.AzureMonitor.Authentication.SharedKey}

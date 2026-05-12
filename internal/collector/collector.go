@@ -175,7 +175,7 @@ func (f *Factory) NewPodSpec(trustedCABundle *v1.ConfigMap, spec obs.ClusterLogF
 // NewCollectorContainer is a constructor for creating the collector container spec.  Note the secretNames are assumed
 // to be a unique list
 func (f *Factory) NewCollectorContainer(inputs internalobs.Inputs, outputs internalobs.Outputs, secretVolumes, configmapVolumes []string, clusterID string) *v1.Container {
-	collector := runtime.NewContainer(constants.CollectorName, utils.GetComponentImage(f.ImageName), v1.PullIfNotPresent, f.CollectorSpec.Resources)
+	collector := runtime.NewContainer(constants.CollectorName, utils.GetComponentImage(f.ImageName), v1.PullAlways, f.CollectorSpec.Resources)
 	collector.Ports = []v1.ContainerPort{
 		{
 			Name:          MetricsPortName,

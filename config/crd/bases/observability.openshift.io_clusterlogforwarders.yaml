@@ -896,6 +896,116 @@ spec:
                 items:
                   description: OutputSpec defines a destination for log messages.
                   properties:
+                    azureLogsIngestion:
+                      description: AzureLogsIngestion configures forwarding log events
+                        to the Azure Monitor Logs Ingestion API
+                      properties:
+                        authentication:
+                          description: Authentication sets credentials for authenticating
+                            the requests to the Azure Logs Ingestion API.
+                          properties:
+                            clientSecret:
+                              description: ClientSecret contains the Azure AD service
+                                principal credentials.
+                              properties:
+                                clientId:
+                                  description: ClientId is the Azure Active Directory
+                                    application (client) ID.
+                                  type: string
+                                secret:
+                                  description: Secret points to the secret containing
+                                    the Azure Active Directory client secret.
+                                  nullable: true
+                                  properties:
+                                    key:
+                                      description: Key contains the name of the key
+                                        inside the referenced Secret.
+                                      type: string
+                                    secretName:
+                                      description: SecretName contains the name of
+                                        the Secret containing the referenced value.
+                                      type: string
+                                  required:
+                                  - key
+                                  - secretName
+                                  type: object
+                                tenantId:
+                                  description: TenantId is the Azure Active Directory
+                                    tenant ID.
+                                  type: string
+                              required:
+                              - clientId
+                              - secret
+                              - tenantId
+                              type: object
+                          required:
+                          - clientSecret
+                          type: object
+                        dcrImmutableId:
+                          description: DcrImmutableId is the immutable ID of the Data
+                            Collection Rule (DCR).
+                          type: string
+                        streamName:
+                          description: StreamName is the name of the custom log stream
+                            in the DCR that the data should be sent to.
+                          type: string
+                        timestampField:
+                          description: |-
+                            TimestampField is the destination field (column) for the timestamp.
+                            Most schemas use "TimeGenerated" (default), but some use "Timestamp" (legacy) or "EventStartTime" (ASIM).
+                          type: string
+                        tokenScope:
+                          description: |-
+                            TokenScope is the token scope for dedicated Azure regions.
+                            Defaults to "https://monitor.azure.com/.default".
+                          type: string
+                        tuning:
+                          description: Tuning specs tuning for the output
+                          properties:
+                            deliveryMode:
+                              description: |-
+                                DeliveryMode sets the delivery mode for log forwarding.
+                                This optional setting. When it is left unset, the system defaults to using an in-memory buffer.
+                                In-memory buffers offer the highest performance due to low latency, but they have two limitations:
+                                they will consume memory, and they do not provide durability — buffered data is lost on process termination or failure.
+                              enum:
+                              - AtLeastOnce
+                              - AtMostOnce
+                              type: string
+                            maxRetryDuration:
+                              description: MaxRetryDuration is the maximum time to
+                                wait between retry attempts after a delivery failure.
+                              format: int64
+                              type: integer
+                            maxWrite:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              description: MaxWrite limits the maximum payload in
+                                terms of bytes of a single "send" to the output.
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            minRetryDuration:
+                              description: MinRetryDuration is the minimum time to
+                                wait between attempts to retry after delivery a failure.
+                              format: int64
+                              type: integer
+                          type: object
+                        url:
+                          description: |-
+                            URL to send log records to.
+                            Basic TLS is enabled if the URL scheme requires it (for example 'https' or 'tls').
+                            The 'username@password' part of `url` is ignored.
+                          type: string
+                          x-kubernetes-validations:
+                          - message: invalid URL
+                            rule: isURL(self)
+                      required:
+                      - authentication
+                      - dcrImmutableId
+                      - streamName
+                      - url
+                      type: object
                     azureMonitor:
                       description: AzureMonitor configures forwarding log events to
                         the Azure Monitor Logs service
@@ -2834,6 +2944,7 @@ spec:
                     type:
                       description: Type of output sink.
                       enum:
+                      - azureLogsIngestion
                       - azureMonitor
                       - cloudwatch
                       - elasticsearch
@@ -2851,6 +2962,9 @@ spec:
                   - type
                   type: object
                   x-kubernetes-validations:
+                  - message: Additional type specific spec is required for the output
+                      type
+                    rule: self.type != 'azureLogsIngestion' || has(self.azureLogsIngestion)
                   - message: Additional type specific spec is required for the output
                       type
                     rule: self.type != 'azureMonitor' || has(self.azureMonitor)

@@ -13,6 +13,8 @@ import (
 func validateURLAccordingToTLS(output obs.OutputSpec) (results []string) {
 	specURL := ""
 	switch output.Type {
+	case obs.OutputTypeAzureLogsIngestion:
+		specURL = output.AzureLogsIngestion.URL
 	case obs.OutputTypeCloudwatch:
 		specURL = output.Cloudwatch.URL
 	case obs.OutputTypeElasticsearch:
